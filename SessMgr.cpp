@@ -103,7 +103,7 @@ static void printPacket(Packet *packet){
     }
 }
 
-SessionNode::SessionNode(Packet *pkt):_tuple(pkt->tuple5),numberPkt(0){
+SessionNode::SessionNode(Packet *pkt):_tuple(pkt->tuple5),numberPkt(0),datalen(0){
     fd = fopen(_tuple.getName().c_str(),"a");
     if(fd == NULL){
         LOG_DEBUG("fd create fail\n");
@@ -130,22 +130,24 @@ bool SessionNode::match(NetTuple5 tuple){
 }
 
 void SessionNode::process(Packet *pkt){
+    assert(pSessAsmInfo != NULL);
+    if(!pkt){
+        return;
+    }
+
     printPacket(pkt);
     numberPkt++;
-    assert(pSessAsmInfo != NULL);
-    // source port greater then destination port
 
+    // first package
     if( (pkt->direct == Cli2Ser && pSessAsmInfo->pClientAsmInfo == NULL) ||
         (pkt->direct == Ser2Cli && pSessAsmInfo->pServerAsmInfo == NULL) ){
         CreateAsmInfo(pkt);
     }
 
-    if(_tuple.tranType==TranType_TCP){
+    if(_tuple.tranType == TranType_TCP){
         AssembPacket(pkt);
-    }else if(_tuple.tranType==TranType_UDP){
-        fwrite(pkt->data,1,pkt->datalen,fd);
-    }else{
-        LOG_DEBUG("other transport protocol\n");
+    }else if(_tuple.tranType == TranType_UDP){
+        // fwrite(pkt->data,1,pkt->datalen,fd);
     }
 }
 
@@ -178,6 +180,8 @@ void SessionNode::CreateAsmInfo(Packet *packet){
 int SessionNode::AssembPacket(Packet *packet){
     if(packet->getDatalen()>0){
         LOG_DEBUG("%s new data [%u]\n",(packet->direct == Cli2Ser)?"===>":"<===", packet->getDatalen())
+        datalen += packet->getDatalen();
+        // todo 虽然数据包有数据，但是需要判断是否是重传数据（计算 expectation ）
         fwrite(packet->data + (packet->getHeadlen() * 4),1,packet->getDatalen(),fd);
     }
 
@@ -210,7 +214,9 @@ void HashSlot::process(Packet *packet){
         node = createSessionNode(packet);
     }
     // process pkt and delete
-    node->process(packet);
+    if(node){
+        node->process(packet);
+    }
 }
 
 SessionNode *HashSlot::match(NetTuple5 tuple){
@@ -225,6 +231,10 @@ SessionNode *HashSlot::match(NetTuple5 tuple){
 SessionNode *HashSlot::createSessionNode(Packet *pkt){
     numNode++;
     auto node = new SessionNode(pkt);
-    nodelist.push_back(node);
+    if(node){
+        nodelist.push_back(node);
+    }else{
+        LOG_ERROR("create Session Node fail\n");
+    }
     return node;
 }
