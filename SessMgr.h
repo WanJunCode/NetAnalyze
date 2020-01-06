@@ -33,7 +33,7 @@ public:
     SessAsmInfo *pSessAsmInfo;
     uint32_t numberPkt;
     NetTuple5 _tuple;
-    uint32 datalen;
+    uint32_t datalen;
     FILE *fd;                   // for saving packet data into file
 };
 
