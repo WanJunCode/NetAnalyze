@@ -38,6 +38,7 @@ uint32_t SessMgr::getMapCount() const{
 
 void SessMgr::feedPkt(const struct pcap_pkthdr *packet_header, const unsigned char *packet_content){
     allPktnum++;
+    LOG_DEBUG("\n\n",allPktnum);
     LOG_DEBUG("No.%d\n",allPktnum);
     // parse Packet
     Packet *packet = new Packet(packet_content,packet_header->caplen);
@@ -98,8 +99,8 @@ void SessMgr::feedPkt(const struct pcap_pkthdr *packet_header, const unsigned ch
 // ===============================================================
 static void printPacket(Packet *packet){
     if(packet->tuple5.tranType == TranType_TCP){
-        LOG_DEBUG(" %s packet seq [%u] ack [%u] datalen [%u] headlen [%d]\n", (packet->direct == Cli2Ser)?"===>":"<===" 
-            ,packet->getSeq(),packet->getAck(),packet->getDatalen(),packet->getHeadlen());
+        LOG_DEBUG(" %s packet seq [%u] ack [%u] datalen [%u]\n", (packet->direct == Cli2Ser)?"===>":"<===" 
+            ,packet->getSeq(),packet->getAck(),packet->getDatalen());
     }
 }
 
@@ -135,6 +136,10 @@ void SessionNode::process(Packet *pkt){
         return;
     }
 
+    if(pkt->isSyn()){
+        LOG_DEBUG("三次握手\n");
+    }
+
     printPacket(pkt);
     numberPkt++;
 
@@ -161,9 +166,9 @@ void SessionNode::CreateAsmInfo(Packet *packet){
         info = pSessAsmInfo->pServerAsmInfo;
     }
 
-    // info could be clientInfo or serverInfo
+    // info could be clientInfo or serverInfo, set [first seq、 seq 、 ack]
     if( packet->tcp ){
-        info->first_data_seq  = info->seq = packet->getSeq();
+        info->first_data_seq  = info->seq = packet->getSeq() + 1;
         info->ack_seq = packet->getAck();
         info->tcpState = TCP_ESTABLED;
     }
@@ -177,18 +182,90 @@ void SessionNode::CreateAsmInfo(Packet *packet){
     }
 }
 
+// only work for TCP 将新数据读取并复制到  client->data 缓存中
+// return -2 没有数据
+// return -1 接受到乱序数据
+// return 0  接受到新数据
 int SessionNode::AssembPacket(Packet *packet){
-    if(packet->getDatalen()>0){
-        LOG_DEBUG("%s new data [%u]\n",(packet->direct == Cli2Ser)?"===>":"<===", packet->getDatalen())
-        datalen += packet->getDatalen();
-        // todo 虽然数据包有数据，但是需要判断是否是重传数据（计算 expectation ）
-        fwrite(packet->data + (packet->getHeadlen() * 4),1,packet->getDatalen(),fd);
+    assert(packet->tuple5.tranType == TranType_TCP);
+
+    AssemableInfo *sender = NULL;
+    if(packet->direct == Cli2Ser){
+        assert(pSessAsmInfo->pClientAsmInfo);
+        sender = pSessAsmInfo->pClientAsmInfo;
+    }else{
+        assert(pSessAsmInfo->pServerAsmInfo);
+        sender = pSessAsmInfo->pServerAsmInfo;
     }
 
-    if(packet->direct == Cli2Ser){
+    // update TCP ack
+    if(packet->getAck() > sender->ack_seq){
+        sender->ack_seq = packet->getAck();
+    }
 
+    // update TCP seq
+    if(packet->getSeq() > sender->seq){
+        sender->seq = packet->getSeq();
+    }
+
+    // judge fin package
+    if(packet->isFin()){
+        sender->tcpState = TCP_FIN;
+        LOG_DEBUG("四次挥手\n");
+    }
+
+    // pkg has data 
+    if(packet->getDatalen()>0){
+        uint32_t iExpSeq = sender->first_data_seq + sender->count;
+        LOG_DEBUG("iExpSeq = [%u] SEQ = [%u]\n",iExpSeq,packet->getSeq());
+        // retransfer or normal package
+        if (packet->getSeq() <= iExpSeq){
+            uint32_t iReTranPktBufLen = iExpSeq - packet->getSeq();
+            // ! 判断数据包中是否有新的数据,去除重传数据,有可能出现负数
+            int newDataLen = packet->getDatalen() - iReTranPktBufLen;
+            LOG_DEBUG("iReTranPktBufLen = [%u]\n",iReTranPktBufLen);
+	        if(newDataLen > 0){
+                if(newDataLen + sender->count - sender->offset > sender->bufsize){
+                    // not enough buffer
+                    uint32_t iAssembleBufLen = 0;
+                    if(!sender->data){
+                        if(newDataLen < 8192)	// 新的数据是否小于 8192 = 4K
+                        {
+                            iAssembleBufLen = 24576;	// 24576 = 8192*3
+                        }else{
+                            iAssembleBufLen = newDataLen * 3;
+                        }
+                        sender->data = new char[iAssembleBufLen];		//预申请拼包缓存空间
+                        sender->bufsize = iAssembleBufLen;				//更新缓冲区长度
+                    }else{
+                        //当前拼包缓存已经分配空间,但缓存空间不够,需要扩大缓存空间
+                        if (newDataLen < sender->bufsize)
+                        {
+                            iAssembleBufLen = 3 * (sender->bufsize);
+                        }else{
+                            iAssembleBufLen = (sender->bufsize) + 3*newDataLen;
+                        }
+                        // new 创建的内存不足，使用realloc重新创建可能会有问题
+                        char *tmpData = new char[iAssembleBufLen];
+                        memcpy(tmpData,sender->data,sender->count - sender->offset);    // copy origin data
+                        delete []sender->data;
+                        sender->data = tmpData;
+                        sender->bufsize = iAssembleBufLen;
+                    }
+                    LOG_DEBUG("new sender bufsize = [%u]\n",sender->bufsize);
+                }
+                memcpy(sender->data + sender->count - sender->offset, packet->data + iReTranPktBufLen, newDataLen);//根据seq偏移,进行报文拼包
+                sender->count_new = newDataLen;     //最新增加的数据长度
+                sender->count += newDataLen;
+            }else{
+                LOG_DEBUG("there is no new data in package\n");
+            }
+        }else{
+            // TODO get disorder pkg
+            LOG_DEBUG("GET disorder package seq[%u] but expect seq[%u]\n",packet->getSeq(),iExpSeq);
+        }
     }else{
-
+        return -2;
     }
     return 0;
 }

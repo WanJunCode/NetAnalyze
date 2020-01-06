@@ -13,6 +13,17 @@ enum TCP_STATE{
     TCP_CLOSED
 };
 
+// TCP 协议 标志位
+enum
+{
+    FIN_FLAG  = 0x01,			// 结束
+    SYN_FLAG  = 0x02,			// 同步
+    RST_FLAG  = 0x04,			// 复位
+    PUSH_FLAG = 0x08,			// 推送
+    ACK_FLAG  = 0x10,			// 应答
+    URG_FLAG  = 0x20,			// 紧急
+};
+
 typedef struct eth_hdr{
     u_char dst_mac[6];              // 目标mac 硬件地址
     u_char src_mac[6];              // 源mac 硬件地址
@@ -224,8 +235,8 @@ struct AssemableInfo{
     TCP_STATE tcpState;
     char *data;                 // must allocate with char[NUM]
     uint32_t offset;
-    uint32_t count;
-    uint32_t count_new;
+    uint32_t count;             // 累计接收的数据
+    uint32_t count_new;         // 最新数据包增加的数据
     uint32_t bufsize;
     uint32_t disOrderPktNum;
     uint32_t seq;

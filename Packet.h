@@ -59,6 +59,21 @@ public:
         return datalen - (34 + getHeadlen()*4);
     }
 
+    bool isAck(){
+        assert(tcp);
+        return (tcp->flags&ACK_FLAG);
+    }
+
+    bool isFin(){
+        assert(tcp);
+        return (tcp->flags&FIN_FLAG);
+    }
+
+    bool isSyn(){
+        assert(tcp);
+        return (tcp->flags&SYN_FLAG);
+    }
+
     Byte *data;
     uint32_t datalen;
     eth_hdr *ethernet;
