@@ -8,7 +8,6 @@
 #include <pcap.h>
 #include <string.h>
 
-
 struct Pcap_pkthdr 
 {
 	uint32_t tv_sec;  /* time stamp */

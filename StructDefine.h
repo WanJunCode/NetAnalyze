@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include "Log.h"
 #include "Tool.h"
 
 #pragma pack(1)
@@ -207,6 +208,7 @@ struct AssemableInfo{
 
     ~AssemableInfo(){
         if(data != NULL){
+            LOG_DEBUG("data count [%u]\n",count);
             delete []data;
             data = NULL;
         }
@@ -232,6 +234,10 @@ struct AssemableInfo{
         pDisorderNodeListTail = NULL;
     }
 
+    uint32_t getExcept(){
+        return (first_data_seq + count);
+    }
+
     TCP_STATE tcpState;
     char *data;                 // must allocate with char[NUM]
     uint32_t offset;
@@ -249,8 +255,8 @@ struct AssemableInfo{
 
 
 /*
-    *@brief 会话的拼包信息结构体
-    */
+ *@brief 会话的拼包信息结构体
+ */
 struct SessAsmInfo
 {
     SessAsmInfo()

@@ -10,3 +10,6 @@ in case of hash clash , use a SessionNode list to solve.
 SessMgr 1:n HashSlot             hashMap
 
 HashSlot 1:n SessionNode         nodeList
+
+
+功能：HTTP还原处理器，因为绝大部分可还原的都是该协议

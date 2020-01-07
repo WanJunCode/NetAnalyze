@@ -137,7 +137,7 @@ void SessionNode::process(Packet *pkt){
     }
 
     if(pkt->isSyn()){
-        LOG_DEBUG("三次握手\n");
+        LOG_DEBUG("SYN Package\n");
     }
 
     printPacket(pkt);
@@ -211,19 +211,17 @@ int SessionNode::AssembPacket(Packet *packet){
     // judge fin package
     if(packet->isFin()){
         sender->tcpState = TCP_FIN;
-        LOG_DEBUG("四次挥手\n");
+        LOG_DEBUG("FIN package\n");
     }
 
     // pkg has data 
     if(packet->getDatalen()>0){
-        uint32_t iExpSeq = sender->first_data_seq + sender->count;
-        LOG_DEBUG("iExpSeq = [%u] SEQ = [%u]\n",iExpSeq,packet->getSeq());
+        LOG_DEBUG("iExpSeq = [%u] SEQ = [%u]\n",sender->getExcept(),packet->getSeq());
         // retransfer or normal package
-        if (packet->getSeq() <= iExpSeq){
-            uint32_t iReTranPktBufLen = iExpSeq - packet->getSeq();
+        if (packet->getSeq() <= sender->getExcept()){
+            uint32_t iReTranPktBufLen = sender->getExcept() - packet->getSeq();
             // ! 判断数据包中是否有新的数据,去除重传数据,有可能出现负数
             int newDataLen = packet->getDatalen() - iReTranPktBufLen;
-            LOG_DEBUG("iReTranPktBufLen = [%u]\n",iReTranPktBufLen);
 	        if(newDataLen > 0){
                 if(newDataLen + sender->count - sender->offset > sender->bufsize){
                     // not enough buffer
@@ -252,17 +250,18 @@ int SessionNode::AssembPacket(Packet *packet){
                         sender->data = tmpData;
                         sender->bufsize = iAssembleBufLen;
                     }
-                    LOG_DEBUG("new sender bufsize = [%u]\n",sender->bufsize);
                 }
-                memcpy(sender->data + sender->count - sender->offset, packet->data + iReTranPktBufLen, newDataLen);//根据seq偏移,进行报文拼包
+                LOG_DEBUG("new data [%d]\n",newDataLen);
+                memcpy(sender->data+sender->count-sender->offset, packet->data+iReTranPktBufLen, newDataLen);//根据seq偏移,进行报文拼包
                 sender->count_new = newDataLen;     //最新增加的数据长度
                 sender->count += newDataLen;
             }else{
-                LOG_DEBUG("there is no new data in package\n");
+                // TODO 重传数据包
+
             }
         }else{
             // TODO get disorder pkg
-            LOG_DEBUG("GET disorder package seq[%u] but expect seq[%u]\n",packet->getSeq(),iExpSeq);
+            LOG_DEBUG("GET disorder package seq[%u] but expect seq[%u]\n",packet->getSeq(),sender->getExcept());
         }
     }else{
         return -2;

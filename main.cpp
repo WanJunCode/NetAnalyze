@@ -6,19 +6,19 @@
 
 // HashCalc hashCalc;
 // std::map<uint32_t,uint32_t> SessMap;
-SessMgr *sessmgr;
+SessMgr *gSessmgr;
 
 // const struct pcap_pkthdr *packet_header  传入数据包的pcap头
 // const unsigned char *packet_content      传入数据包的实际内容
 void parse_callback(unsigned char *arg, const struct pcap_pkthdr *packet_header, const unsigned char *packet_content){
    
     // input
-    sessmgr->feedPkt(packet_header, packet_content);
+    gSessmgr->feedPkt(packet_header, packet_content);
 }
 
 int main(int argc, char *argv[]){
     SessMgr mgr(100000);
-    sessmgr=&mgr;
+    gSessmgr=&mgr;
     
     LOG_DEBUG("PCAP start...\n");
     char errBuf[PCAP_ERRBUF_SIZE];
