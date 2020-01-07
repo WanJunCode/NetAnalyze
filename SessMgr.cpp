@@ -38,60 +38,28 @@ uint32_t SessMgr::getMapCount() const{
 
 void SessMgr::feedPkt(const struct pcap_pkthdr *packet_header, const unsigned char *packet_content){
     allPktnum++;
-    LOG_DEBUG("\n\n",allPktnum);
-    LOG_DEBUG("No.%d\n",allPktnum);
     // parse Packet
     Packet *packet = new Packet(packet_content,packet_header->caplen);
+
     if(packet){
+        // filter http package : TCP and PORT [80]
+        if( packet->tuple5.tranType != TranType_TCP || (packet->tuple5.sport != 80 && packet->tuple5.dport != 80) ){
+            return;
+        }
+        tcpPktNum++;
         auto hashkey = hashCalc.CalcHashValue(packet->tuple5);
         packet->tuple5.iHashValue = hashkey;
 
-        if(packet->tuple5.tranType == TranType_TCP){
-            tcpPktNum++;
-            if(TCPSessMap.find(hashkey) == TCPSessMap.end()){
-                tcpSession++;
-                TCPSessMap[hashkey] = new HashSlot();
-            }
-            TCPSessMap[hashkey]->process(packet);
-        }else if(packet->tuple5.tranType == TranType_UDP){
-            udpPktNum++;
-            if(UDPSessMap.find(hashkey) == UDPSessMap.end()){
-                UDPSessMap[hashkey] = new HashSlot();
-            }
-            UDPSessMap[hashkey]->process(packet);
-        }else{
-            otherPktNum++;
+        if(TCPSessMap.find(hashkey) == TCPSessMap.end()){
+            tcpSession++;
+            TCPSessMap[hashkey] = new HashSlot();
         }
+        TCPSessMap[hashkey]->process(packet);           // input
 
         delete packet;
     }else{
         LOG_DEBUG("create new Packet fail\n");
     }
-    
-#if 0
-    LOG_DEBUG("Packet length : %d\n",packet_header->len);
-    LOG_DEBUG("Number of bytes : %d\n",packet_header->caplen);
-    LOG_DEBUG("Received time : %s\n",ctime((const time_t*)&packet_header->ts.tv_sec));
-    for(int i=0;i<packet_header->caplen;i++){
-        LOG_DEBUG(" %02x",packet_content[i]);
-        if((i+1)%16==0){
-            LOG_DEBUG("\n");
-        }
-    }
-    LOG_DEBUG("\n\n");
-    LOG_DEBUG("analyse information:\n\n");
-    LOG_DEBUG("ethernet header information:\n");
-    LOG_DEBUG("src_mac : %02x-%02x-%02x-%02x-%02x-%02x\n",ethernet->src_mac[0],ethernet->src_mac[1],ethernet->src_mac[2],ethernet->src_mac[3],ethernet->src_mac[4],ethernet->src_mac[5]);
-    LOG_DEBUG("dst_mac : %02x-%02x-%02x-%02x-%02x-%02x\n",ethernet->dst_mac[0],ethernet->dst_mac[1],ethernet->dst_mac[2],ethernet->dst_mac[3],ethernet->dst_mac[4],ethernet->dst_mac[5]);
-    LOG_DEBUG("ethernet type : %u\n",ethernet->eth_type);
-
-        LOG_DEBUG("IPV4 is used\n");
-        LOG_DEBUG("IPV4 header information:\n");
-        // 偏移获得 ip 数据包头
-        LOG_DEBUG("source ip : %d.%d.%d.%d\n",ip->sourceIP[0],ip->sourceIP[1],ip->sourceIP[2],ip->sourceIP[3]);
-        LOG_DEBUG("dest ip : %d.%d.%d.%d\n",ip->destIP[0],ip->destIP[1],ip->destIP[2],ip->destIP[3]);
-            LOG_DEBUG("urg_ptr : %u\n",ntohs(tcp->urg_ptr));
-#endif
 
 }
 
@@ -131,28 +99,34 @@ bool SessionNode::match(NetTuple5 tuple){
 }
 
 void SessionNode::process(Packet *pkt){
+    static uint32_t num = 1;
+    LOG_DEBUG("NO.%u\n",num++);
+
+    // check
     assert(pSessAsmInfo != NULL);
     if(!pkt){
         return;
     }
 
-    if(pkt->isSyn()){
-        LOG_DEBUG("SYN Package\n");
-    }
-
     printPacket(pkt);
     numberPkt++;
 
-    // first package
+    // direct first package
     if( (pkt->direct == Cli2Ser && pSessAsmInfo->pClientAsmInfo == NULL) ||
         (pkt->direct == Ser2Cli && pSessAsmInfo->pServerAsmInfo == NULL) ){
         CreateAsmInfo(pkt);
     }
 
-    if(_tuple.tranType == TranType_TCP){
-        AssembPacket(pkt);
-    }else if(_tuple.tranType == TranType_UDP){
-        // fwrite(pkt->data,1,pkt->datalen,fd);
+    int ret = AssembPacket(pkt);
+    if(ret == 0){
+        // 收到新数据
+        LOG_DEBUG("reveive new data\n");
+    }else if(ret == -1){
+        // 收到乱序数据
+        LOG_DEBUG("reveive disorder data\n");
+    }else if(ret == -2){
+        // 没有收到数据
+        LOG_DEBUG("no data\n");
     }
 }
 
@@ -255,6 +229,12 @@ int SessionNode::AssembPacket(Packet *packet){
                 memcpy(sender->data+sender->count-sender->offset, packet->data+iReTranPktBufLen, newDataLen);//根据seq偏移,进行报文拼包
                 sender->count_new = newDataLen;     //最新增加的数据长度
                 sender->count += newDataLen;
+                
+                // 写入文件
+                fwrite(packet->data+iReTranPktBufLen,1,newDataLen,fd);
+
+                // TODO 处理乱序报文
+
             }else{
                 // TODO 重传数据包
 
