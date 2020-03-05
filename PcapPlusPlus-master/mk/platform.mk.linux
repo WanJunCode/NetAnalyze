@@ -1,0 +1,25 @@
+LINUX := 1
+
+BIN_EXT :=
+
+# 库前缀
+LIB_PREFIX := lib
+
+# 库后缀
+LIB_EXT := .a
+
+CXX := g++
+
+CC := gcc
+
+AR := ar
+
+RM := rm
+
+CP := cp
+
+MKDIR := mkdir
+
+INSTALL_SCRIPT := install.sh
+
+UNINSTALL_SCRIPT := uninstall.sh
