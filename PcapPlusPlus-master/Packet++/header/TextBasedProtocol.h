@@ -243,7 +243,7 @@ protected:
 	void parseFields();
 	void shiftFieldsOffset(HeaderField* fromField, int numOfBytesToShift);
 
-	// abstract methods
+	// abstract methods 纯虚函数
 	virtual char getHeaderFieldNameValueSeparator() const = 0;
 	virtual bool spacesAllowedBetweenHeaderFieldNameAndValue() const = 0;
 

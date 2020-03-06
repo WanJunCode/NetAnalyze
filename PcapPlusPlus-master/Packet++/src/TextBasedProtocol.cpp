@@ -84,7 +84,9 @@ void TextBasedProtocolMessage::copyDataFrom(const TextBasedProtocolMessage& othe
 // 解析 field 字段
 void TextBasedProtocolMessage::parseFields()
 {
+	// 不同的文本协议分割符不同且名称之间是否可以带有空格也不一样
 	// 字段分割符号，是否允许字段名和值之间有空格
+	// ! 这里可以调用得到子类重写的纯虚函数？
 	char nameValueSeperator = getHeaderFieldNameValueSeparator();
 	bool spacesAllowedBetweenNameAndValue = spacesAllowedBetweenHeaderFieldNameAndValue();
 
@@ -375,8 +377,10 @@ void TextBasedProtocolMessage::shiftFieldsOffset(HeaderField* fromField, int num
 }
 
 // 通过 name 获得 HeaderField
+// 如果 name 出现多次，index表示获取第几次出现的 field
 HeaderField* TextBasedProtocolMessage::getFieldByName(std::string fieldName, int index) const
 {
+	// 将字符串全部转化为小写
 	std::transform(fieldName.begin(), fieldName.end(), fieldName.begin(), ::tolower);
 
 	std::pair <std::multimap<std::string,HeaderField*>::const_iterator, std::multimap<std::string,HeaderField*>::const_iterator> range;

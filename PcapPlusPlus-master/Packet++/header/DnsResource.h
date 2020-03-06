@@ -24,6 +24,7 @@ namespace pcpp
 
 	/**
 	 * @class IDnsResource
+	 * 表示所有DNS记录的基类，可以使用于 type class name type
 	 * An abstract class for representing all types of DNS records. This class gives access to all available record data such as DNS type, class,
 	 * name, type of record, etc. The DnsLayer holds an instance of (inherited type of) this class for each DNS record in the DNS packet
 	 */

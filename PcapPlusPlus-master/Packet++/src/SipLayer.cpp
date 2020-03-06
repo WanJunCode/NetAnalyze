@@ -12,6 +12,7 @@
 namespace pcpp
 {
 
+// 枚举类型转字符串
 const std::string SipMethodEnumToString[14] = {
 		"INVITE",
 		"ACK",
@@ -37,6 +38,7 @@ const std::string SipMethodEnumToString[14] = {
 int SipLayer::getContentLength() const
 {
 	std::string contentLengthFieldName(PCPP_SIP_CONTENT_LENGTH_FIELD);
+	// 全部转化为小写字符
 	std::transform(contentLengthFieldName.begin(), contentLengthFieldName.end(), contentLengthFieldName.begin(), ::tolower);
 	HeaderField* contentLengthField = getFieldByName(contentLengthFieldName);
 	if (contentLengthField != NULL)

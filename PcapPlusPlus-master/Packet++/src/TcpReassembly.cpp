@@ -498,14 +498,17 @@ void TcpReassembly::handleFinOrRst(TcpReassemblyData* tcpReassemblyData, int sid
 	// check if the other side also sees FIN or RST packet. If so - close the flow. Otherwise - only clear the out-of-order packets for this side
 	int otherSideIndex = 1 - sideIndex;
 	if (tcpReassemblyData->twoSides[otherSideIndex].gotFinOrRst)
-		closeConnectionInternal(flowKey, TcpReassembly::TcpReassemblyConnectionClosedByFIN_RST);
+		closeConnectionInternal(flowKey, TcpReassembly::TcpReassemblyConnectionClosedByFIN_RST);// 通过fin rst关闭连接
 	else
 		checkOutOfOrderFragments(tcpReassemblyData, sideIndex, true);
 }
 
+// 检查失序片段
+// int sideIndex  数据包方向
+// bool cleanWholeFragList  是否清空整个片段列表
 void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyData, int sideIndex, bool cleanWholeFragList)
 {
-	bool foundSomething = false;
+	bool foundSomething = false;//判断是否找到合适的新数据片段，用于判断while循环是否继续
 
 	do
 	{
@@ -519,6 +522,7 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 
 			// first fragment list iteration - go over the whole fragment list and see if can find fragments that match the current sequence
 			// or have smaller sequence but have big enough payload to get new data
+			// 遍历 tcpReassemblyData->twoSides[sideIndex].tcpFragmentList 失序片段
 			while (index < (int)tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.size())
 			{
 				TcpFragment* curTcpFrag = tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.at(index);
@@ -605,11 +609,12 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 
 		// second fragment list iteration - now we're left only with fragments that have higher sequence than current sequence. This means missing data.
 		// Search for the fragment with the closest sequence to the current one
-
-		uint32_t closestSequence = 0xffffffff;
-		int closestSequenceFragIndex = -1;
+		// 遗失数据，查找距离sequence最近的fragment片段
+		uint32_t closestSequence = 0xffffffff;// 初始化一个最大值，用于查找最小的sequence
+		int closestSequenceFragIndex = -1;//存储最小的sequence的index索引
 		index = 0;
 
+		// 遍历失序的片段列表PointerVector<>
 		while (index < (int)tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.size())
 		{
 			// extract segment at current index
@@ -625,16 +630,16 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 			index++;
 		}
 
-		// this means fragment list is not empty at this stage
+		// this means fragment list is not empty at this stage 找到了最小的sequence片段
 		if (closestSequenceFragIndex > -1)
 		{
 			// get the fragment with the closest sequence
 			TcpFragment* curTcpFrag = tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.at(closestSequenceFragIndex);
 
-			// calculate number of missing bytes
+			// calculate number of missing bytes 计算丢失的数据长度
 			uint32_t missingDataLen = curTcpFrag->sequence - tcpReassemblyData->twoSides[sideIndex].sequence;
 
-			// update sequence
+			// update sequence 
 			tcpReassemblyData->twoSides[sideIndex].sequence = curTcpFrag->sequence + curTcpFrag->dataLength;
 			if (curTcpFrag->data != NULL)
 			{
@@ -660,7 +665,7 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 				}
 			}
 
-			// remove fragment from list
+			// remove fragment from list 【begin()+index索引值】
 			tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.erase(tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.begin() + closestSequenceFragIndex);
 
 			LOG_DEBUG("Calling checkOutOfOrderFragments again from the start");
@@ -673,9 +678,10 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 	} while (foundSomething);
 }
 
+// 删除连接信息
 void TcpReassembly::closeConnection(uint32_t flowKey)
 {
-	closeConnectionInternal(flowKey, TcpReassembly::TcpReassemblyConnectionClosedManually);
+	closeConnectionInternal(flowKey, TcpReassembly::TcpReassemblyConnectionClosedManually);	// 手动关闭
 }
 
 void TcpReassembly::closeConnectionInternal(uint32_t flowKey, ConnectionEndReason reason)
@@ -693,7 +699,7 @@ void TcpReassembly::closeConnectionInternal(uint32_t flowKey, ConnectionEndReaso
 
 	LOG_DEBUG("Closing connection with flow key 0x%X", flowKey);
 
-	tcpReassemblyData = iter->second;
+	tcpReassemblyData = iter->second;// 每个连接对应一个 flowKey ，对应一个 tcpReassemblyData
 
 	LOG_DEBUG("Calling checkOutOfOrderFragments on side 0");
 	checkOutOfOrderFragments(tcpReassemblyData, 0, true);
@@ -701,11 +707,12 @@ void TcpReassembly::closeConnectionInternal(uint32_t flowKey, ConnectionEndReaso
 	LOG_DEBUG("Calling checkOutOfOrderFragments on side 1");
 	checkOutOfOrderFragments(tcpReassemblyData, 1, true);
 
+	// 关闭回调函数
 	if (m_OnConnEnd != NULL)
 		m_OnConnEnd(tcpReassemblyData->connData, reason, m_UserCookie);
 
 	delete tcpReassemblyData;
-	iter->second = NULL; // mark the connection as closed
+	iter->second = NULL; // mark the connection as closed  防止悬垂指针
 	insertIntoCleanupList(flowKey);
 
 	LOG_DEBUG("Connection with flow key 0x%X is closed", flowKey);
@@ -715,6 +722,7 @@ void TcpReassembly::closeAllConnections()
 {
 	LOG_DEBUG("Closing all flows");
 
+	// 遍历 map
 	ConnectionList::iterator iter = m_ConnectionList.begin(), iterEnd = m_ConnectionList.end();
 	for (; iter != iterEnd; ++iter)
 	{
@@ -732,17 +740,21 @@ void TcpReassembly::closeAllConnections()
 		LOG_DEBUG("Calling checkOutOfOrderFragments on side 1");
 		checkOutOfOrderFragments(tcpReassemblyData, 1, true);
 
+		// 回调函数
 		if (m_OnConnEnd != NULL)
 			m_OnConnEnd(tcpReassemblyData->connData, TcpReassemblyConnectionClosedManually, m_UserCookie);
 
 		delete tcpReassemblyData;
-		iter->second = NULL; // mark the connection as closed
+		iter->second = NULL; // mark the connection as closed  悬垂指针
 		insertIntoCleanupList(flowKey);
 
 		LOG_DEBUG("Connection with flow key 0x%X is closed", flowKey);
 	}
 }
 
+// connection
+// 是关闭的返回 0 ， 是打开的放回 1
+// 没有该连接，执行错误返回 -1
 int TcpReassembly::isConnectionOpen(const ConnectionData& connection) const
 {
 	ConnectionList::const_iterator iter = m_ConnectionList.find(connection.flowKey);
@@ -752,11 +764,15 @@ int TcpReassembly::isConnectionOpen(const ConnectionData& connection) const
 	return -1;
 }
 
+// 将flowKey插入清除列表
 void TcpReassembly::insertIntoCleanupList(uint32_t flowKey)
 {
 	// m_CleanupList is a map with key of type time_t (expiration time). The mapped type is a list that stores the flow keys to be cleared in certain point of time.
 	// m_CleanupList.insert inserts an empty list if the container does not already contain an element with an equivalent key,
 	// otherwise this method returns an iterator to the element that prevents insertion.
+	// CleanupList::mapped_type 返回值的类型，即std::list<uint32_t>
+	// 创建一个 pair 存入 cleanlist，键使用当前时间（time(NULL)）加清除延迟时间
+	// 将该pair的second（即std::list<uint32_t>）获取，并插入flowkey
 	std::pair<CleanupList::iterator, bool> pair = m_CleanupList.insert(std::make_pair(time(NULL) + m_ClosedConnectionDelay, CleanupList::mapped_type()));
 
 	// dereferencing of map iterator and getting the reference to list
@@ -764,6 +780,7 @@ void TcpReassembly::insertIntoCleanupList(uint32_t flowKey)
 	keysList.push_back(flowKey);
 }
 
+// 完全的清除连接
 uint32_t TcpReassembly::purgeClosedConnections(uint32_t maxNumToClean)
 {
 	uint32_t count = 0;
@@ -771,9 +788,11 @@ uint32_t TcpReassembly::purgeClosedConnections(uint32_t maxNumToClean)
 	if(maxNumToClean == 0)
 		maxNumToClean = m_MaxNumToClean;
 
+	// std::map::upper_bound( key )
 	CleanupList::iterator iterTime = m_CleanupList.begin(), iterTimeEnd = m_CleanupList.upper_bound(time(NULL));
 	while(iterTime != iterTimeEnd && count < maxNumToClean)
-	{
+	{	
+		// key list 中存储 flowKey
 		CleanupList::mapped_type &keysList = iterTime->second;
 		CleanupList::mapped_type::iterator iterKey = keysList.begin(), iterKeyEnd = keysList.end();
 

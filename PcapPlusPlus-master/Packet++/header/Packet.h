@@ -29,8 +29,8 @@ namespace pcpp
 		friend class Layer;
 	private:
 		RawPacket* m_RawPacket;				// 未处理数据
-		Layer* m_FirstLayer;
-		Layer* m_LastLayer;
+		Layer* m_FirstLayer;				// 第一层协议
+		Layer* m_LastLayer;					// 最后一层协议
 		uint64_t m_ProtocolTypes;			// 协议类型
 		size_t m_MaxPacketLen;				// 数据包最大长度
 		bool m_FreeRawPacket;				// 是否需要释放 未处理数据包

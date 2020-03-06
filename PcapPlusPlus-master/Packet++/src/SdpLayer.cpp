@@ -10,6 +10,7 @@
 namespace pcpp
 {
 
+// 既然只在当前文件中使用，为什么不用 static 修饰
 std::vector<std::string> splitByWhiteSpaces(std::string str)
 {
 	std::string buf;
@@ -21,7 +22,7 @@ std::vector<std::string> splitByWhiteSpaces(std::string str)
 	return result;
 }
 
-
+// 构造函数
 SdpLayer::SdpLayer(uint8_t* data, size_t dataLen, Layer* prevLayer, Packet* packet) : TextBasedProtocolMessage(data, dataLen, prevLayer, packet)
 {
 	m_Protocol = SDP;

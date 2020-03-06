@@ -14,44 +14,46 @@
 namespace pcpp
 {
 
-/** Protocol version (v) */
+/** Protocol version (v) 协议版本 */
 #define PCPP_SDP_PROTOCOL_VERSION_FIELD "v"
-/** Originator and session identifier (o) */
+/** Originator and session identifier (o) 首次提出者 会话认证 */
 #define PCPP_SDP_ORIGINATOR_FIELD       "o"
-/** Session name (s) */
+/** Session name (s) 会话名称 */
 #define PCPP_SDP_SESSION_NAME_FIELD     "s"
-/** Session title, media title or short information (i) */
+/** Session title, media title or short information (i) 会话标题 多媒体标题 短信息 */
 #define PCPP_SDP_INFO_FIELD             "i"
-/** URI of description (u) */
+/** URI of description (u) url描述 */
 #define PCPP_SDP_URI_FIELD              "u"
-/** Email address with optional name of contacts (e) */
+/** Email address with optional name of contacts (e) email地址 */
 #define PCPP_SDP_EMAIL_FIELD            "e"
-/** Phone number with optional name of contacts (p) */
+/** Phone number with optional name of contacts (p) 手机号码 */
 #define PCPP_SDP_PHONE_FIELD            "p"
-/** Connection information (c) */
+/** Connection information (c) 连接信息 */
 #define PCPP_SDP_CONNECTION_INFO_FIELD  "c"
-/** Bandwidth information (b) */
+/** Bandwidth information (b) 宽带信息 */
 #define PCPP_SDP_BANDWIDTH_FIELD        "b"
-/** Time the session is active (t) */
+/** Time the session is active (t) 会话激活时间 */
 #define PCPP_SDP_TIME_FIELD             "t"
-/** Repeat times (r) */
+/** Repeat times (r) 重复次数 */
 #define PCPP_SDP_REPEAT_TIMES_FIELD     "r"
-/** Time zone adjustments (z) */
+/** Time zone adjustments (z) 时间区 */
 #define PCPP_SDP_TIME_ZONE_FIELD        "z"
-/** Encryption key (k) */
+/** Encryption key (k) 加密秘钥 */
 #define PCPP_SDP_ENCRYPTION_KEY_FIELD   "k"
-/** Media attribute (a) */
+/** Media attribute (a) 多媒体属性 */
 #define PCPP_SDP_MEDIA_ATTRIBUTE_FIELD  "a"
-/** Media name and transport address (m) */
+/** Media name and transport address (m) 多媒体名称和传输地址 */
 #define PCPP_SDP_MEDIA_NAME_FIELD       "m"
 
 	/**
 	 * @class SdpLayer
-	 * Represents a SDP (Session Description Protocol) message. SDP is a text-based protocol described by a series of fields, one per line (lines are separated by CRLF).
-	 * The form of each field is as follows:<BR>
+	 * 会话描述协议，是一个基于文本的协议
+	 * Represents a SDP (Session Description Protocol) message. SDP is a text-based protocol described by a series of fields, one per line 
+	 * (lines are separated by CRLF). The form of each field is as follows:<BR>
 	 * @code
 	 * [character]=[value]
 	 * @endcode
+	 * 每个字符表示一个字段
 	 * Each character represents a certain type of field. All field type are represented as macros in SdpLayer.h file
 	 * (for example: PCPP_SDP_ORIGINATOR_FIELD is a macro for the originator field (o=) ).<BR>
 	 * For more details about SDP structure please refer to its Wikipedia page: https://en.wikipedia.org/wiki/Session_Description_Protocol
@@ -159,7 +161,7 @@ namespace pcpp
 
 	protected:
 
-		// implementation of abstract methods
+		// implementation of abstract methods  头域中name和value之间的分割符是“=”，不允许存在空格
 		char getHeaderFieldNameValueSeparator() const { return '='; }
 		bool spacesAllowedBetweenHeaderFieldNameAndValue() const { return false; }
 

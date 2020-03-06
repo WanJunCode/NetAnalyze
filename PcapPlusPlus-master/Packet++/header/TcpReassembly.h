@@ -363,7 +363,7 @@ private:
 		IPAddress* srcIP;
 		uint16_t srcPort;
 		uint32_t sequence;
-		PointerVector<TcpFragment> tcpFragmentList;
+		PointerVector<TcpFragment> tcpFragmentList;				// 存储失序片段，指针数组
 		bool gotFinOrRst;
 
 		void setSrcIP(IPAddress* sourrcIP);
@@ -393,7 +393,7 @@ private:
 	void* m_UserCookie;
 	ConnectionList m_ConnectionList;					// map (hash_key   TcpReassemblyData)
 	ConnectionInfoList m_ConnectionInfo;				// 存储连接信息 ip port time flowkey
-	CleanupList m_CleanupList;
+	CleanupList m_CleanupList;							// 清除列表
 	bool m_RemoveConnInfo;								// 是否删除连接信息
 	uint32_t m_ClosedConnectionDelay;					// 连接关闭延迟
 	uint32_t m_MaxNumToClean;							// 需要清理的最大数量

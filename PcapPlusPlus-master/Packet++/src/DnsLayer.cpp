@@ -18,6 +18,8 @@
 namespace pcpp
 {
 
+// 文件作用域  static
+// 创建DNS端口map
 static std::map<uint16_t, bool> createDNSPortMap()
 {
 	std::map<uint16_t, bool> result;
@@ -138,11 +140,11 @@ bool DnsLayer::shortenLayer(int offsetInLayer, size_t numOfBytesToShorten, IDnsR
 	return true;
 }
 
-
+// 解析资源
 void DnsLayer::parseResources()
 {
 	size_t offsetInPacket = sizeof(dnshdr);
-	IDnsResource* curResource = m_ResourceList;
+	IDnsResource* curResource = m_ResourceList;// 记录当前的 Resource，并将所有资源都添加到m_ResourceList
 
 	uint16_t numOfQuestions = ntohs(getDnsHeader()->numberOfQuestions);
 	uint16_t numOfAnswers = ntohs(getDnsHeader()->numberOfAnswers);
@@ -158,6 +160,7 @@ void DnsLayer::parseResources()
 		return;
 	}
 
+	// numOfQuestions -> numOfAnswers -> numOfAuthority -> numOfAdditional 依次遍历获取
 	for (uint16_t i = 0; i < numOfOtherResources; i++)
 	{
 		DnsResourceType resType;
@@ -217,6 +220,7 @@ void DnsLayer::parseResources()
 			curResource = curResource->getNextResource();
 		}
 
+		// 分别记录四种资源的第一个。 DnsAnswerType DnsAuthorityType DnsAdditionalType 都是 newResource
 		if (resType == DnsQueryType && m_FirstQuery == NULL)
 			m_FirstQuery = newQuery;
 		else if (resType == DnsAnswerType && m_FirstAnswer == NULL)
@@ -692,6 +696,7 @@ bool DnsLayer::removeAnswer(DnsResource* answerToRemove)
 	return res;
 }
 
+// 获取 dns 端口地图
 const std::map<uint16_t, bool>* DnsLayer::getDNSPortMap()
 {
 	return &DNSPortMap;

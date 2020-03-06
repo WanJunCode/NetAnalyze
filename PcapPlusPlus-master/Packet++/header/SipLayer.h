@@ -76,6 +76,7 @@ namespace pcpp
 	{
 	public:
 		/**
+		 * SIP协议中消息体长度由 "Content-Length" 决定
 		 * The length of the body of many SIP response messages is determined by a SIP header field called "Content-Length". This method
 		 * parses this field, extracts its value and return it. If this field doesn't exist 0 is returned
 		 * @return SIP response body length determined by "Content-Length" field
@@ -83,6 +84,7 @@ namespace pcpp
 		int getContentLength() const;
 
 		/**
+		 * 设置 "Content-Length" 字段
 		 * The length of the body of many SIP messages is determined by a header field called "Content-Length". This method sets
 		 * The content-length field value. The method supports several cases:
 		 * - If the "Content-Length" field exists - the method will only replace the existing value with the new value
@@ -98,10 +100,11 @@ namespace pcpp
 		HeaderField* setContentLength(int contentLength, const std::string prevFieldName = "");
 
 		// Overridden methods
-
+		// SIP是会话层协议
 		OsiModelLayer getOsiModelLayer() const { return OsiModelSesionLayer; }
 
 		/**
+		 * 解析下一层协议，当前只支持SDP协议
 		 * Currently identifies only SDP if content-length field exists and set to a value greater than zero.
 		 * If content-length field doesn't exist or set to zero and still there is data after this layer, a PayloadLayer will be created
 		 */
@@ -118,9 +121,9 @@ namespace pcpp
 		SipLayer(const SipLayer& other) : TextBasedProtocolMessage(other) {}
 		SipLayer& operator=(const SipLayer& other) { TextBasedProtocolMessage::operator=(other); return *this; }
 
-		// implementation of abstract methods
+		// implementation of abstract methods  实现基类抽象函数
 		char getHeaderFieldNameValueSeparator() const { return ':'; }
-		bool spacesAllowedBetweenHeaderFieldNameAndValue() const { return true; }
+		bool spacesAllowedBetweenHeaderFieldNameAndValue() const { return true; }		// 在Name和Value之间是否存在空格
 	};
 
 
@@ -141,37 +144,37 @@ namespace pcpp
 
 	public:
 		/**
-		 * SIP request methods
+		 * SIP request methods  枚举类型用于表示SIP协议的请求
 		 */
 		enum SipMethod
 		{
-			/** INVITE */
+			/** INVITE 邀请 */
 			SipINVITE,
-			/** ACK */
+			/** ACK 应答 */
 			SipACK,
-			/** BYE */
+			/** BYE 结束 */
 			SipBYE,
-			/** CANCEL */
+			/** CANCEL 取消 */
 			SipCANCEL,
-			/** REFISTER */
+			/** REFISTER 注册 */
 			SipREGISTER,
 			/** PRACK */
 			SipPRACK,
-			/** OPTIONS */
+			/** OPTIONS 选项 */
 			SipOPTIONS,
-			/** SUBSCRIBE */
+			/** SUBSCRIBE 订阅 */
 			SipSUBSCRIBE,
-			/** NOTIFY */
+			/** NOTIFY 提示 */
 			SipNOTIFY,
-			/** PUBLISH */
+			/** PUBLISH 发布 */
 			SipPUBLISH,
-			/** INFO */
+			/** INFO 告知 */
 			SipINFO,
-			/** REFER */
+			/** REFER 描述 */
 			SipREFER,
-			/** MESSAGE */
+			/** MESSAGE 信息 */
 			SipMESSAGE,
-			/** UPDATE */
+			/** UPDATE 升级 */
 			SipUPDATE,
 			/** Unknown SIP method */
 			SipMethodUnknown
@@ -511,6 +514,7 @@ namespace pcpp
 		int getSize() const { return m_FirstLineEndOffset; }
 
 		/**
+		 * 返回第一行请求是否完整
 		 * As explained in SipRequestLayer, a SIP message can sometimes spread over more than 1 packet, so when looking at a single packet
 		 * the header can be partial. Same goes for the first line - it can spread over more than 1 packet. This method returns an indication
 		 * whether the first line is partial
@@ -519,6 +523,7 @@ namespace pcpp
 		bool isComplete() const { return m_IsComplete; }
 
 		/**
+		 * 在SipRequestLayer类中创建SipRequestFirstLine如果错误，抛出该异常
 		 * @class SipRequestFirstLineException
 		 * This exception can be thrown while constructing SipRequestFirstLine (the constructor is private, so the construction happens
 		 * only in SipRequestLayer). This kind of exception is thrown if trying to construct with SIP method of
@@ -538,6 +543,7 @@ namespace pcpp
 		};
 
 	private:
+		// 构造函数是私有函数，只有友元类SipRequestLayer可以进行实例化
 		SipRequestFirstLine(SipRequestLayer* sipRequest);
 		SipRequestFirstLine(SipRequestLayer* sipRequest, SipRequestLayer::SipMethod method, std::string version, std::string uri);
 			//throw(SipRequestFirstLineException); // Deprecated in C++17
