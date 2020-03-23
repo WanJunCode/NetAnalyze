@@ -86,7 +86,7 @@ void TextBasedProtocolMessage::parseFields()
 {
 	// 不同的文本协议分割符不同且名称之间是否可以带有空格也不一样
 	// 字段分割符号，是否允许字段名和值之间有空格
-	// ! 这里可以调用得到子类重写的纯虚函数？
+	// 纯虚函数，可以在这里获取子类的实现
 	char nameValueSeperator = getHeaderFieldNameValueSeparator();
 	bool spacesAllowedBetweenNameAndValue = spacesAllowedBetweenHeaderFieldNameAndValue();
 
@@ -94,6 +94,7 @@ void TextBasedProtocolMessage::parseFields()
 	LOG_DEBUG("Added new field: name='%s'; offset in packet=%d; length=%d", firstField->getFieldName().c_str(), firstField->m_NameOffsetInMessage, (int)firstField->getFieldSize());
 	LOG_DEBUG("     Field value = %s", firstField->getFieldValue().c_str());
 
+	// 判断是否为第一个字段field
 	if (m_FieldList == NULL)
 		m_FieldList = firstField;
 	else
@@ -464,7 +465,7 @@ HeaderField::HeaderField(TextBasedProtocolMessage* TextBasedProtocolMessage, int
 		m_IsEndOfHeaderField = false;		// 该字段不是最后的字段
 
 	char* fieldValuePtr = (char*)memchr(fieldData, nameValueSeperator, m_TextBasedProtocolMessage->m_DataLen-(size_t)m_NameOffsetInMessage);
-	// could not find the position of the separator, meaning field value position is unknown
+	// could not find the position of the separator, meaning field value position is unknown  如果找不到分隔符
 	if (fieldValuePtr == NULL)
 	{
 		m_ValueOffsetInMessage = -1;
@@ -478,7 +479,7 @@ HeaderField::HeaderField(TextBasedProtocolMessage* TextBasedProtocolMessage, int
 		// So fieldValuePtr give us the position of the separator. Value offset is the first non-space byte forward
 		fieldValuePtr++;
 
-		if (spacesAllowedBetweenNameAndValue)
+		if (spacesAllowedBetweenNameAndValue)	// 判断是否允许有空格在name和value之间
 		{
 			// advance fieldValuePtr 1 byte forward while didn't get to end of packet and fieldValuePtr points to a space char
 			while ((size_t)(fieldValuePtr - (char*)m_TextBasedProtocolMessage->m_Data) <= m_TextBasedProtocolMessage->getDataLen() && (*fieldValuePtr) == ' ')
@@ -488,6 +489,7 @@ HeaderField::HeaderField(TextBasedProtocolMessage* TextBasedProtocolMessage, int
 		// reached the end of the packet and value start offset wasn't found
 		if ((size_t)(fieldValuePtr - (char*)(m_TextBasedProtocolMessage->m_Data)) > m_TextBasedProtocolMessage->getDataLen())
 		{
+			// 没有找到值
 			m_ValueOffsetInMessage = -1;
 			m_FieldValueSize = -1;
 		}
@@ -495,13 +497,14 @@ HeaderField::HeaderField(TextBasedProtocolMessage* TextBasedProtocolMessage, int
 		{
 			m_ValueOffsetInMessage = fieldValuePtr - (char*)m_TextBasedProtocolMessage->m_Data;
 			// couldn't find the end of the field, so assuming the field value length is from m_ValueOffsetInMessage until the end of the packet
+			// 从当前headerField往后找不到 "\n" ,所以当前field的值是从m_ValueOffsetInMessage一直到数据包尾部
 			if (fieldEndPtr == NULL)
 				m_FieldValueSize = (char*)(m_TextBasedProtocolMessage->m_Data + m_TextBasedProtocolMessage->getDataLen()) - fieldValuePtr;
 			else
 			{
 				m_FieldValueSize = fieldEndPtr - fieldValuePtr;
 				// if field ends with \r\n, decrease the value length by 1
-				if ((*(--fieldEndPtr)) == '\r')
+				if ((*(--fieldEndPtr)) == '\r')// name:value\r\n
 					m_FieldValueSize--;
 			}
 		}
